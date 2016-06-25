@@ -3,7 +3,7 @@ permalink:           pretty
 
 # Setup
 title:               Indra's Technical Musings
-tagline:             Machine learning, programming, math, finance
+tagline:             machine learning, programming, math, finance
 url:                 http://irustandi.github.io
 paginate:            1
 baseurl:             ""
