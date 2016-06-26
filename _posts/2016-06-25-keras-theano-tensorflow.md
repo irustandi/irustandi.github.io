@@ -9,6 +9,14 @@ Each time is time for the first epoch. There is also quite a bit of
 initialization time prior to the first epoch (in the order a few
 seconds), but it is not carefully measured.
 
+### imdb_cnn_lstm.py
+* Theano CPU: 121s
+* TensorFlow CPU: 67s
+* Theano GPU: 20s
+* TensorFlow GPU: 96s
+
+Note: TensorFlow GPU is actually SLOWER compared to TensorFlow CPU.
+
 ### imdb_lstm.py
 
 * Theano CPU: 214s
