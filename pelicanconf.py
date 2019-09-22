@@ -37,3 +37,5 @@ DEFAULT_PAGINATION = 10
 
 
 THEME = "C:\\Users\\irust\\Documents\\GitHub\\pelican-themes\\Flex"
+
+DISQUS_SITENAME = "irustandi-github-io"
