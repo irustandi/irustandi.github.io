@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Indra's Technical Musings</title><link href="https://irustandi.github.io/" rel="alternate"></link><link href="https://irustandi.github.io/feeds/all.atom.xml" rel="self"></link><id>https://irustandi.github.io/</id><updated>2019-09-21T08:00:00-04:00</updated><entry><title>Migrating to Pelican</title><link href="https://irustandi.github.io/migrating-to-pelican.html" rel="alternate"></link><published>2019-09-21T08:00:00-04:00</published><updated>2019-09-21T08:00:00-04:00</updated><author><name>Indrayana Rustandi</name></author><id>tag:irustandi.github.io,2019-09-21:/migrating-to-pelican.html</id><content type="html">&lt;p&gt;After some extended hiatus, trying to pick up writing this blog again. I have also decided to migrate to &lt;a href="https://docs.getpelican.com/en/stable/"&gt;Pelican&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I have found these resources to be useful during the migration:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://rasor.github.io/using-pelican-blog-on-github-pages.html"&gt;rasor.github.io&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="http://anotherdatum.com/pelican-and-github-pages-workflow.html"&gt;anotherdatum.com&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content></entry><entry><title>Performance comparison of Keras examples when run using Theano and TensorFlow</title><link href="https://irustandi.github.io/performance-comparison-of-keras-examples-when-run-using-theano-and-tensorflow.html" rel="alternate"></link><published>2016-06-25T09:00:00-04:00</published><updated>2016-06-25T09:00:00-04:00</updated><author><name>Indrayana Rustandi</name></author><id>tag:irustandi.github.io,2016-06-25:/performance-comparison-of-keras-examples-when-run-using-theano-and-tensorflow.html</id><summary type="html">&lt;p&gt;Setup: 2x Xeon E5 2670, 128GB RAM, Nvidia Geforce GTX 980 Ti (6GB), Ubuntu 14.04, CUDA 7.5, Anaconda 4.0 running Python 2.7, Theano 0.8.2 (CNMem turned on), TensorFlow 0.9.0, CuDNN 4&lt;/p&gt;
+&lt;p&gt;Each time is time for the first epoch. There is also …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Setup: 2x Xeon E5 2670, 128GB RAM, Nvidia Geforce GTX 980 Ti (6GB), Ubuntu 14.04, CUDA 7.5, Anaconda 4.0 running Python 2.7, Theano 0.8.2 (CNMem turned on), TensorFlow 0.9.0, CuDNN 4&lt;/p&gt;
+&lt;p&gt;Each time is time for the first epoch. There is also quite a bit of
+initialization time prior to the first epoch (in the order a few
+seconds), but it is not carefully measured.&lt;/p&gt;
+&lt;h3&gt;imdb_cnn_lstm.py&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Theano CPU: 121s&lt;/li&gt;
+&lt;li&gt;TensorFlow CPU: 67s&lt;/li&gt;
+&lt;li&gt;Theano GPU: 20s&lt;/li&gt;
+&lt;li&gt;TensorFlow GPU: 96s&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note: TensorFlow GPU is actually SLOWER compared to TensorFlow CPU.&lt;/p&gt;
+&lt;h3&gt;imdb_lstm.py&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Theano CPU: 214s&lt;/li&gt;
+&lt;li&gt;TensorFlow CPU: 100s&lt;/li&gt;
+&lt;li&gt;Theano GPU: 30s&lt;/li&gt;
+&lt;li&gt;TensorFlow GPU: 153s&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note: TensorFlow GPU is actually SLOWER compared to TensorFlow CPU.&lt;/p&gt;
+&lt;h3&gt;lstm_text_generation.py&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Theano CPU: around 6000s&lt;/li&gt;
+&lt;li&gt;TensorFlow CPU: around 1200s&lt;/li&gt;
+&lt;li&gt;Theano GPU: 213s&lt;/li&gt;
+&lt;li&gt;TensorFlow GPU: 260s&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;mnist_cnn.py&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Theano CPU: 223s&lt;/li&gt;
+&lt;li&gt;TensorFlow CPU: 78s&lt;/li&gt;
+&lt;li&gt;Theano GPU: 3s&lt;/li&gt;
+&lt;li&gt;TensorFlow GPU: 24s&lt;/li&gt;
+&lt;/ul&gt;</content></entry></feed>

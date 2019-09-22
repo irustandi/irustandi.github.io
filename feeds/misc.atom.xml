@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Indra's Technical Musings - misc</title><link href="https://irustandi.github.io/" rel="alternate"></link><link href="https://irustandi.github.io/feeds/misc.atom.xml" rel="self"></link><id>https://irustandi.github.io/</id><updated>2019-09-21T08:00:00-04:00</updated><entry><title>Migrating to Pelican</title><link href="https://irustandi.github.io/migrating-to-pelican.html" rel="alternate"></link><published>2019-09-21T08:00:00-04:00</published><updated>2019-09-21T08:00:00-04:00</updated><author><name>Indrayana Rustandi</name></author><id>tag:irustandi.github.io,2019-09-21:/migrating-to-pelican.html</id><content type="html">&lt;p&gt;After some extended hiatus, trying to pick up writing this blog again. I have also decided to migrate to &lt;a href="https://docs.getpelican.com/en/stable/"&gt;Pelican&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I have found these resources to be useful during the migration:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://rasor.github.io/using-pelican-blog-on-github-pages.html"&gt;rasor.github.io&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="http://anotherdatum.com/pelican-and-github-pages-workflow.html"&gt;anotherdatum.com&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content></entry></feed>
