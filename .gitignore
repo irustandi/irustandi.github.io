@@ -11,3 +11,5 @@ Thumbs.db
 
 output/
 __pycache__/
+
+.vscode/
