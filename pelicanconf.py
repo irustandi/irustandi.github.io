@@ -35,6 +35,8 @@ DEFAULT_PAGINATION = 10
 # Uncomment following line if you want document-relative URLs when developing
 #RELATIVE_URLS = True
 
+PLUGIN_PATHS = ['C:\\Users\\irust\\Documents\\GitHub\\pelican-plugins']
+PLUGINS = ['render_math']
 
 THEME = "C:\\Users\\irust\\Documents\\GitHub\\pelican-themes\\Flex"
 
