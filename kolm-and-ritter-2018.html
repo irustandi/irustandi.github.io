@@ -1,0 +1,772 @@
+
+<!DOCTYPE html>
+<html lang="english">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="" />
+
+  <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro|Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
+
+  <link rel="stylesheet" type="text/css" href="/theme/pygments/github.min.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/font-awesome.min.css">
+
+
+
+
+
+<!-- Google Analytics -->
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-148456981-1', 'auto');
+  ga('send', 'pageview');
+</script>
+<!-- End Google Analytics -->
+
+<meta name="author" content="Indrayana Rustandi" />
+<meta name="description" content="%reload_ext autoreload %autoreload 2 %matplotlib inline In an SSRN paper, Petter Kolm and Gordon Ritter present the application of reinforcement learning for model-free European call option hedging. Unfortunately, there does not seem to be any code made available to accompany this paper. Here we try to replicate the results of …" />
+<meta name="keywords" content="">
+
+<meta property="og:site_name" content="Indra's Technical Musings"/>
+<meta property="og:title" content="Kolm and Ritter (2018)"/>
+<meta property="og:description" content="%reload_ext autoreload %autoreload 2 %matplotlib inline In an SSRN paper, Petter Kolm and Gordon Ritter present the application of reinforcement learning for model-free European call option hedging. Unfortunately, there does not seem to be any code made available to accompany this paper. Here we try to replicate the results of …"/>
+<meta property="og:locale" content="en_US"/>
+<meta property="og:url" content="/kolm-and-ritter-2018.html"/>
+<meta property="og:type" content="article"/>
+<meta property="article:published_time" content="2019-10-12 09:00:00-04:00"/>
+<meta property="article:modified_time" content=""/>
+<meta property="article:author" content="/author/indrayana-rustandi.html">
+<meta property="article:section" content="reinforcement learning"/>
+<meta property="og:image" content="">
+
+  <title>Indra's Technical Musings &ndash; Kolm and Ritter (2018)</title>
+
+</head>
+<body>
+  <aside>
+    <div>
+      <a href="">
+        <img src="/theme/img/profile.png" alt="" title="">
+      </a>
+      <h1><a href=""></a></h1>
+
+
+
+      <ul class="social">
+        <li><a class="sc-linkedin" href="https://www.linkedin.com/in/indrayana-rustandi-a624494/" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+        <li><a class="sc-github" href="https://github.com/irustandi/" target="_blank"><i class="fa fa-github"></i></a></li>
+      </ul>
+    </div>
+
+
+  </aside>
+  <main>
+
+
+<article class="single">
+  <header>
+      
+    <h1 id="kolm-and-ritter-2018">Kolm and Ritter (2018)</h1>
+    <p>
+          Posted on Sat 12 October 2019 in <a href="/category/reinforcement-learning.html">reinforcement learning</a>
+
+
+    </p>
+  </header>
+
+
+  <div>
+    <div class="highlight"><pre><span></span><span class="o">%</span><span class="n">reload_ext</span> <span class="n">autoreload</span>
+<span class="o">%</span><span class="n">autoreload</span> <span class="mi">2</span>
+<span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
+</pre></div>
+
+
+<p>In an <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3281235">SSRN paper</a>, Petter Kolm and Gordon Ritter present the application of reinforcement learning for model-free European call option hedging. Unfortunately, there does not seem to be any code made available to accompany this paper. Here we try to replicate the results of the paper.</p>
+<p>Let us first import the necessary packages.</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="kn">as</span> <span class="nn">si</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">catboost</span> <span class="kn">import</span> <span class="n">CatBoostRegressor</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span><span class="p">,</span> <span class="n">tqdm_notebook</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">gym</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">&#39;seaborn&#39;</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="kn">as</span> <span class="nn">sns</span>
+</pre></div>
+
+
+<p>Next, we implement functions to calculate the price and delta for a European option (call/put, credit to <a href="https://aaronschlegel.me/black-scholes-formula-python.html">Aaron Schlegel</a>).</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">euro_vanilla</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">option</span> <span class="o">=</span> <span class="s1">&#39;call&#39;</span><span class="p">):</span>
+
+    <span class="c1">#S: spot price</span>
+    <span class="c1">#K: strike price</span>
+    <span class="c1">#T: time to maturity</span>
+    <span class="c1">#r: interest rate</span>
+    <span class="c1">#sigma: volatility of underlying asset</span>
+
+    <span class="k">if</span> <span class="n">T</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">d1</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">S</span> <span class="o">/</span> <span class="n">K</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">T</span><span class="p">))</span>
+        <span class="n">d2</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">S</span> <span class="o">/</span> <span class="n">K</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">T</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s1">&#39;call&#39;</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">S</span> <span class="o">*</span> <span class="n">si</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-</span> <span class="n">K</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">r</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">si</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s1">&#39;put&#39;</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">K</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">r</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="n">si</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="o">-</span><span class="n">d2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-</span> <span class="n">S</span> <span class="o">*</span> <span class="n">si</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="o">-</span><span class="n">d1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s1">&#39;call&#39;</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">S</span> <span class="o">-</span> <span class="n">K</span> <span class="k">if</span> <span class="n">S</span> <span class="o">&gt;</span> <span class="n">K</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s1">&#39;put&#39;</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">K</span> <span class="o">-</span> <span class="n">S</span> <span class="k">if</span> <span class="n">K</span> <span class="o">&gt;</span> <span class="n">S</span> <span class="k">else</span> <span class="mi">0</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+<span class="k">def</span> <span class="nf">euro_vanilla_delta</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">option</span> <span class="o">=</span> <span class="s1">&#39;call&#39;</span><span class="p">):</span>
+
+    <span class="c1">#S: spot price</span>
+    <span class="c1">#K: strike price</span>
+    <span class="c1">#T: time to maturity</span>
+    <span class="c1">#r: interest rate</span>
+    <span class="c1">#sigma: volatility of underlying asset</span>
+
+    <span class="k">if</span> <span class="n">T</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">d1</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">S</span> <span class="o">/</span> <span class="n">K</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">T</span><span class="p">))</span>
+        <span class="n">d2</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">S</span> <span class="o">/</span> <span class="n">K</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">sigma</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigma</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">T</span><span class="p">))</span>
+
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">si</span><span class="o">.</span><span class="n">norm</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s1">&#39;call&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">delta</span>
+        <span class="k">if</span> <span class="n">option</span> <span class="o">==</span> <span class="s1">&#39;put&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">delta</span> <span class="o">-</span> <span class="mf">1.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+</pre></div>
+
+
+<p>We also need to simulate our underlying prices, which we assume to be a geometric Brownian motion (see <a href="https://stackoverflow.com/questions/13202799/python-code-geometric-brownian-motion-whats-wrong">this StackOverflow post</a> for details).</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">simulate_GBM</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">numts</span><span class="p">):</span>
+    <span class="c1"># S0: starting level</span>
+    <span class="c1"># mu: drift</span>
+    <span class="c1"># sigma: volatility</span>
+    <span class="c1"># dt: the timestep unit</span>
+    <span class="c1"># T: end time</span>
+    <span class="c1"># N: the number of elements in the time series</span>
+    <span class="c1"># numts: number of time series to generate</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+
+    <span class="n">W</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">numts</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span> 
+    <span class="n">W</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">W</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="c1">### standard brownian motion ###</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="p">(</span><span class="n">mu</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">t</span> <span class="o">+</span> <span class="n">sigma</span><span class="o">*</span><span class="n">W</span> 
+    <span class="n">S</span> <span class="o">=</span> <span class="n">S0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="c1">### geometric brownian motion ###</span>
+
+    <span class="k">return</span> <span class="n">S</span><span class="p">,</span> <span class="n">t</span>
+
+<span class="k">def</span> <span class="nf">simulate_prices</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">numts</span><span class="p">):</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">T</span> <span class="o">*</span> <span class="n">D</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">D</span>
+
+    <span class="k">return</span> <span class="n">simulate_GBM</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">numts</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Let us test our price simulation function by generating a sequence of prices and plotting them.</p>
+<div class="highlight"><pre><span></span><span class="n">prices</span><span class="p">,</span> <span class="n">t</span> <span class="o">=</span> <span class="n">simulate_prices</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">prices</span><span class="p">[</span><span class="mi">5</span><span class="p">,:])</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_8_1.png"></p>
+<p>Looks reasonable. Now we are ready to implement our simulation environment. We follow the interface of <a href="https://github.com/openai/gym/blob/master/docs/creating-environments.md">OpenAI gym's environment</a>. We also implement the transaction cost calculator, following the formula used in the paper:</p>
+<p>$$
+\mathrm{cost}(n) = \mathrm{multiplier} \times \mathrm{TickSize} \times (|n| + 0.01 n^2)
+$$</p>
+<p>When this calculator is passed to our environment, the costs of our transactions will be included in the reward. The basic reward follows equation (10) in the paper:</p>
+<p>$$
+R_t := \delta w_t - \frac{\kappa}{2}(\delta w_t)^2
+$$</p>
+<p>Our state space consists of </p>
+<ul>
+<li>stock price</li>
+<li>time to expiry</li>
+<li>number of shares held</li>
+</ul>
+<p>Our action space is a non-negative integer below 100, to reflect the number of shares to hold (short) for the next time step. Here, since we assume we are long the call option, the stock position is going to be always short.</p>
+<p>In the environment, we keep track of the evolution of the following:</p>
+<ul>
+<li>stock prices</li>
+<li>option prices</li>
+<li>number of shares held short</li>
+<li>PnL for stock and option</li>
+<li>cash and transaction cost</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">BasicCostCalculator</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick_size</span><span class="p">,</span> <span class="n">multiplier</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tick_size</span> <span class="o">=</span> <span class="n">tick_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">=</span> <span class="n">multiplier</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tick_size</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">n</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">BSMEnv</span><span class="p">(</span><span class="n">gym</span><span class="o">.</span><span class="n">Env</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">kappa</span><span class="p">,</span> <span class="n">cost_calculator</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c1"># S0: starting level</span>
+        <span class="c1"># K: strike price of the option</span>
+        <span class="c1"># r: interest rate</span>
+        <span class="c1"># sigma: volatility</span>
+        <span class="c1"># T: number of days</span>
+        <span class="c1"># D: number of hedging periods in a day</span>
+        <span class="c1"># kappa: risk-aversion parameter</span>
+        <span class="c1"># cost_calculator (optional): calculator to use for transaction costs</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">S0</span> <span class="o">=</span> <span class="n">S0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">=</span> <span class="n">K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">T</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kappa</span> <span class="o">=</span> <span class="n">kappa</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prices</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idx</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opt_prices</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cost_calculator</span> <span class="o">=</span> <span class="n">cost_calculator</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Discrete</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">observation_space</span> <span class="o">=</span> <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Tuple</span><span class="p">((</span>
+            <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+            <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Box</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+            <span class="n">gym</span><span class="o">.</span><span class="n">spaces</span><span class="o">.</span><span class="n">Discrete</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+        <span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prices</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">prices</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">prices</span><span class="p">,</span> <span class="n">time</span> <span class="o">=</span> <span class="n">simulate_prices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">prices</span> <span class="o">=</span> <span class="n">prices</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prices</span> <span class="o">=</span> <span class="n">prices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opt_prices</span> <span class="o">=</span> <span class="p">[</span><span class="n">euro_vanilla</span><span class="p">(</span><span class="n">price</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="n">tm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="s1">&#39;call&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">price</span><span class="p">,</span> <span class="n">tm</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deltas</span> <span class="o">=</span> <span class="p">[</span><span class="n">euro_vanilla_delta</span><span class="p">(</span><span class="n">price</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="n">tm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="s1">&#39;call&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">price</span><span class="p">,</span> <span class="n">tm</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opt_pnl</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">opt_prices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stock_pnl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_shares_hist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cash_hist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cost_hist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cash</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">opt_pnl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cash_hist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cash</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
+        <span class="c1"># buy back the short</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cash</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span>
+
+        <span class="n">num_shares_delta</span> <span class="o">=</span> <span class="n">action</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span> <span class="o">=</span> <span class="n">action</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cash</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_shares_hist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cash_hist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cash</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">action</span>
+
+        <span class="n">state_next</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prices</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_shares</span><span class="p">)</span>
+
+        <span class="n">d_wealth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">opt_pnl</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">reward</span> <span class="o">=</span> <span class="n">d_wealth</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">kappa</span> <span class="o">*</span> <span class="n">d_wealth</span> <span class="o">*</span> <span class="n">d_wealth</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cost_calculator</span><span class="p">:</span>
+            <span class="n">cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cost_calculator</span><span class="p">(</span><span class="n">num_shares_delta</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cost_hist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">cost</span>
+            <span class="n">reward</span> <span class="o">-=</span> <span class="n">cost</span>
+
+        <span class="n">info</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;opt_pnl&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">opt_pnl</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">],</span>
+            <span class="s1">&#39;stock_pnl&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">idx</span><span class="p">],</span>
+            <span class="s1">&#39;cost&#39;</span><span class="p">:</span> <span class="n">cost</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cost_calculator</span> <span class="k">else</span> <span class="mf">0.</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span>        
+
+        <span class="k">return</span> <span class="n">state_next</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span>
+</pre></div>
+
+
+<p>With the environment defined, we can implement our hedging agent. First we define an abstract class <code>Hedger</code> for our hedging agent. In this class, we define a collection of abstract functions that will be invoked by our simulator. The main hedging function is <code>hedge()</code>.</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Hedger</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_batch_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_batch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_episode_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_episode_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_step_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_step_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">hedge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="k">pass</span>
+</pre></div>
+
+
+<p>Next we have the hedger implementing the standard Black-Scholes-Merton hedging: <code>BSMHedger</code>. This hedger uses the option's delta to determine how many shares to use for hedging, calling <code>euro_vanilla_delta()</code> defined above to calculate the option's delta.</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">BSMHedger</span><span class="p">(</span><span class="n">Hedger</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">opt_type</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">=</span> <span class="n">K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opt_type</span> <span class="o">=</span> <span class="n">opt_type</span>
+
+    <span class="k">def</span> <span class="nf">hedge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="n">stock_price</span><span class="p">,</span> <span class="n">time_to_expire</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="mi">100</span> <span class="o">*</span> <span class="n">euro_vanilla_delta</span><span class="p">(</span><span class="n">stock_price</span><span class="p">,</span> 
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,</span> 
+                                                  <span class="n">time_to_expire</span><span class="p">,</span> 
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> 
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> 
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">opt_type</span><span class="p">))</span>
+</pre></div>
+
+
+<p>Last but not least, we have our reinforcement-learning hedger. The key member of the hedger is <code>model</code>; <code>model</code> is a model of the Q function, i.e. the mapping between a state-action pair to the corresponding value; it represents the value of taking the action given a particular state. In a given state, the policy then is to select the action with the maximal value given by the Q function when combined with the given state.</p>
+<p>The hedger can be in training mode or evaluation mode. In the training mode, we try to learn <code>model</code> while in the evaluation mode, the hedger applies the trained <code>model</code> to decide the hedging action. Before <code>model</code> is learned (initialized), the hedger always takes random actions, while after initialization, the hedger can perform $\epsilon$-greedy exploration of the actions during training. At the end of each batch, we fit <code>model</code> based on the rewards obtained in that batch.</p>
+<p>In the paper, there is not much detail about what they use as <code>model</code>, besides the fact that it is a nonlinear regression model. Here, we use the catboost regressor from the <a href="https://catboost.ai/">catboost</a> package, but the hedger interface itself is agnostic to this detail as long as it can call the <a href="https://scikit-learn.org/stable/index.html">sklearn</a> API (<code>fit()</code> and <code>predict()</code>) on <code>model</code>.</p>
+<p>We note that the procedure done here is somewhat similar to the one described in <a href="http://jmlr.csail.mit.edu/papers/volume6/ernst05a/ernst05a.pdf">Ernst, et al (2005)</a>.</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">RLHedger</span><span class="p">(</span><span class="n">Hedger</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">gamma</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="n">gamma</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_prev</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_prev</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">training</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">X_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">101</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">101</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">X_pred</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">training</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">training</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">on_batch_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">on_batch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">on_step_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_next</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_prev</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">action_prev</span><span class="p">]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">reward</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span><span class="p">:</span>
+                <span class="n">action</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_action</span><span class="p">(</span><span class="n">state_next</span><span class="p">)</span>
+                <span class="n">y</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">q</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X_pred</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">state</span><span class="p">))</span>
+
+        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X_pred</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span>
+        <span class="n">action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">X_pred</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">preds</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">action</span><span class="p">,</span> <span class="n">q</span>
+
+    <span class="k">def</span> <span class="nf">hedge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_prev</span> <span class="o">=</span> <span class="n">state</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">training</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">eps_idx</span><span class="p">]):</span>
+            <span class="n">action</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">101</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">action</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_action</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">action_prev</span> <span class="o">=</span> <span class="n">action</span>
+        <span class="k">return</span> <span class="n">action</span>
+</pre></div>
+
+
+<p>We are now ready to implement functions for running our simulations. First, we implement the function to run a specific episode.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">run_episode</span><span class="p">(</span><span class="n">episode_idx</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">gamma</span><span class="p">):</span>
+    <span class="n">hedger</span> <span class="o">=</span> <span class="n">RLHedger</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span>
+    <span class="n">hedger</span><span class="o">.</span><span class="n">on_episode_start</span><span class="p">()</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+        <span class="n">hedger</span><span class="o">.</span><span class="n">on_step_start</span><span class="p">()</span>
+        <span class="n">action</span> <span class="o">=</span> <span class="n">hedger</span><span class="o">.</span><span class="n">hedge</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+        <span class="n">hedger</span><span class="o">.</span><span class="n">on_step_end</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+
+    <span class="n">hedger</span><span class="o">.</span><span class="n">on_episode_end</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">hedger</span><span class="o">.</span><span class="n">X</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">hedger</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Note that there are no dependencies between episodes. We can take advantage of this property and parallelize <code>run_episode()</code> to speed up training. This is done in <code>run_training()</code> below.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">run_training</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">hedger</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">nbatches</span><span class="p">,</span> <span class="n">nepisodes</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">batch_idx</span> <span class="ow">in</span> <span class="n">tqdm_notebook</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nbatches</span><span class="p">)):</span>
+        <span class="n">hedger</span><span class="o">.</span><span class="n">on_batch_start</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">8</span><span class="p">)(</span><span class="n">delayed</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">run_episode</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">hedger</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">[</span><span class="n">batch_idx</span><span class="p">],</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">))(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nepisodes</span><span class="p">))</span>
+
+        <span class="n">X</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nepisodes</span><span class="p">):</span>
+            <span class="n">X_curr</span><span class="p">,</span> <span class="n">y_curr</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="n">X</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">X_curr</span><span class="p">)</span>
+            <span class="n">y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y_curr</span><span class="p">)</span>
+
+        <span class="n">X_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">y_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">hedger</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X_arr</span>
+        <span class="n">hedger</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y_arr</span>
+
+        <span class="n">hedger</span><span class="o">.</span><span class="n">on_batch_end</span><span class="p">()</span>
+</pre></div>
+
+
+<p>We also implement the out-of-sample testing function, <code>run_test()</code>. One difference here is that we run the simulation for both the trained reinforcement-learning hedger and the Black-Scholes-Merton hedger. In this function, we also collect the PnL and transaction-cost history of each episode. This function can potentially be parallelized, but we do not do that here.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">run_test</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">hedger</span><span class="p">,</span> <span class="n">env_ref</span><span class="p">,</span> <span class="n">hedger_ref</span><span class="p">,</span> <span class="n">nepisodes</span><span class="p">):</span>
+    <span class="n">pnls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">pnls_ref</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">costs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">costs_ref</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">pnls_info</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">pnls_info_ref</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">hedger</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="n">hedger_ref</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">episode_idx</span> <span class="ow">in</span> <span class="n">tqdm_notebook</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nepisodes</span><span class="p">)):</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="n">hedger</span><span class="o">.</span><span class="n">on_episode_start</span><span class="p">()</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">pnl</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">cost</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">pnl_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="n">hedger</span><span class="o">.</span><span class="n">on_step_start</span><span class="p">()</span>
+            <span class="n">action</span> <span class="o">=</span> <span class="n">hedger</span><span class="o">.</span><span class="n">hedge</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">pnl_curr</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;opt_pnl&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;stock_pnl&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">]</span>
+            <span class="n">pnl_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl_curr</span><span class="p">)</span>
+            <span class="n">pnl</span> <span class="o">+=</span> <span class="n">pnl_curr</span>
+            <span class="n">cost</span> <span class="o">+=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">]</span>
+            <span class="n">hedger</span><span class="o">.</span><span class="n">on_step_end</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+
+        <span class="n">hedger</span><span class="o">.</span><span class="n">on_episode_end</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+        <span class="n">pnls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl</span><span class="p">)</span>
+        <span class="n">costs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span>
+        <span class="n">pnls_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl_list</span><span class="p">)</span>
+
+        <span class="n">state</span> <span class="o">=</span> <span class="n">env_ref</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">prices</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">t</span><span class="p">)</span>
+        <span class="n">hedger_ref</span><span class="o">.</span><span class="n">on_episode_start</span><span class="p">()</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">pnl</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">cost</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">pnl_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="n">hedger_ref</span><span class="o">.</span><span class="n">on_step_start</span><span class="p">()</span>
+            <span class="n">action</span> <span class="o">=</span> <span class="n">hedger_ref</span><span class="o">.</span><span class="n">hedge</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">done</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">env_ref</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+            <span class="n">pnl_curr</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;opt_pnl&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;stock_pnl&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">]</span>
+            <span class="n">pnl_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl_curr</span><span class="p">)</span>
+            <span class="n">pnl</span> <span class="o">+=</span> <span class="n">pnl_curr</span>
+            <span class="n">cost</span> <span class="o">+=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">]</span>
+            <span class="n">hedger</span><span class="o">.</span><span class="n">on_step_end</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+
+        <span class="n">hedger_ref</span><span class="o">.</span><span class="n">on_episode_end</span><span class="p">(</span><span class="n">env_ref</span><span class="p">)</span>
+        <span class="n">pnls_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl</span><span class="p">)</span>
+        <span class="n">costs_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span>
+        <span class="n">pnls_info_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl_list</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pnls</span><span class="p">,</span> <span class="n">pnls_ref</span><span class="p">,</span> <span class="n">costs</span><span class="p">,</span> <span class="n">costs_ref</span><span class="p">,</span> <span class="n">pnls_info</span><span class="p">,</span> <span class="n">pnls_info_ref</span>
+</pre></div>
+
+
+<h3>Training</h3>
+<p>Finally, we are ready to train our reinforcement-learning hedger. First we setup some constants, most of which follow what are used in the paper.</p>
+<div class="highlight"><pre><span></span><span class="n">NBATCHES</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">NEPISODES</span> <span class="o">=</span> <span class="mi">15000</span>
+<span class="n">NEPISODES_TEST</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="n">T</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">D</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">S0</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="n">SIGMA</span> <span class="o">=</span> <span class="mf">0.01</span>
+<span class="n">KAPPA</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">GAMMA</span> <span class="o">=</span> <span class="mf">0.9</span>
+<span class="n">EPS</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.09</span><span class="p">,</span> <span class="mf">0.08</span><span class="p">,</span> <span class="mf">0.07</span><span class="p">,</span> <span class="mf">0.06</span><span class="p">]</span>
+<span class="n">TICK_SIZE</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">MULTIPLIER</span> <span class="o">=</span> <span class="mf">5.</span>
+</pre></div>
+
+
+<p>We first train the hedger when there are no transaction costs.</p>
+<div class="highlight"><pre><span></span><span class="n">env</span> <span class="o">=</span> <span class="n">BSMEnv</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">KAPPA</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">CatBoostRegressor</span><span class="p">(</span><span class="n">thread_count</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">hedger</span> <span class="o">=</span> <span class="n">RLHedger</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">EPS</span><span class="p">,</span> <span class="n">GAMMA</span><span class="p">)</span>
+
+<span class="n">run_training</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">hedger</span><span class="p">,</span> <span class="n">EPS</span><span class="p">,</span> <span class="n">GAMMA</span><span class="p">,</span> <span class="n">NBATCHES</span><span class="p">,</span> <span class="n">NEPISODES</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Then we train the hedger with transaction costs.</p>
+<div class="highlight"><pre><span></span><span class="n">env_cost</span> <span class="o">=</span> <span class="n">BSMEnv</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">KAPPA</span><span class="p">,</span> <span class="n">cost_calculator</span><span class="o">=</span><span class="n">BasicCostCalculator</span><span class="p">(</span><span class="n">tick_size</span><span class="o">=</span><span class="n">TICK_SIZE</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">MULTIPLIER</span><span class="p">))</span>
+<span class="n">model_cost</span> <span class="o">=</span> <span class="n">CatBoostRegressor</span><span class="p">(</span><span class="n">thread_count</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">hedger_cost</span> <span class="o">=</span> <span class="n">RLHedger</span><span class="p">(</span><span class="n">model_cost</span><span class="p">,</span> <span class="n">EPS</span><span class="p">,</span> <span class="n">GAMMA</span><span class="p">)</span>
+
+<span class="n">run_training</span><span class="p">(</span><span class="n">env_cost</span><span class="p">,</span> <span class="n">hedger_cost</span><span class="p">,</span> <span class="n">EPS</span><span class="p">,</span> <span class="n">GAMMA</span><span class="p">,</span> <span class="n">NBATCHES</span><span class="p">,</span> <span class="n">NEPISODES</span><span class="p">)</span>
+</pre></div>
+
+
+<h3>Out-of-sample testing</h3>
+<p>Let us now evaluate the hedgers we trained with out-of-sample cases. First we setup the reference Black-Scholes-Merton hedger, and the environments for testing: one environment for our trained hedger and one environment for the reference hedger.</p>
+<div class="highlight"><pre><span></span><span class="n">hedger_ref</span> <span class="o">=</span> <span class="n">BSMHedger</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="s1">&#39;call&#39;</span><span class="p">)</span>
+
+<span class="n">env</span> <span class="o">=</span> <span class="n">BSMEnv</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">KAPPA</span><span class="p">)</span>
+<span class="n">env_ref</span> <span class="o">=</span> <span class="n">BSMEnv</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">KAPPA</span><span class="p">)</span>
+<span class="n">env_cost</span> <span class="o">=</span> <span class="n">BSMEnv</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">KAPPA</span><span class="p">,</span> <span class="n">cost_calculator</span><span class="o">=</span><span class="n">BasicCostCalculator</span><span class="p">(</span><span class="n">tick_size</span><span class="o">=</span><span class="n">TICK_SIZE</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">MULTIPLIER</span><span class="p">))</span>
+<span class="n">env_ref_cost</span> <span class="o">=</span> <span class="n">BSMEnv</span><span class="p">(</span><span class="n">S0</span><span class="p">,</span> <span class="n">S0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SIGMA</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">KAPPA</span><span class="p">,</span> <span class="n">cost_calculator</span><span class="o">=</span><span class="n">BasicCostCalculator</span><span class="p">(</span><span class="n">tick_size</span><span class="o">=</span><span class="n">TICK_SIZE</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="n">MULTIPLIER</span><span class="p">))</span>
+</pre></div>
+
+
+<p>With those setup, we can run the out-of-sample simulations for both the no-transaction-cost and the with-transaction-cost cases.</p>
+<div class="highlight"><pre><span></span><span class="n">pnls</span><span class="p">,</span> <span class="n">pnls_ref</span><span class="p">,</span> <span class="n">costs</span><span class="p">,</span> <span class="n">costs_ref</span><span class="p">,</span> <span class="n">pnls_info</span><span class="p">,</span> <span class="n">pnls_info_ref</span> <span class="o">=</span> <span class="n">run_test</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">hedger</span><span class="p">,</span> <span class="n">env_ref</span><span class="p">,</span> <span class="n">hedger_ref</span><span class="p">,</span> <span class="n">NEPISODES_TEST</span><span class="p">)</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="n">pnls_cost</span><span class="p">,</span> <span class="n">pnls_ref_cost</span><span class="p">,</span> <span class="n">costs_cost</span><span class="p">,</span> <span class="n">costs_ref_cost</span><span class="p">,</span> <span class="n">pnls_info_cost</span><span class="p">,</span> <span class="n">pnls_info_ref_cost</span> <span class="o">=</span> <span class="n">run_test</span><span class="p">(</span><span class="n">env_cost</span><span class="p">,</span> <span class="n">hedger_cost</span><span class="p">,</span> <span class="n">env_ref_cost</span><span class="p">,</span> <span class="n">hedger_ref</span><span class="p">,</span> <span class="n">NEPISODES_TEST</span><span class="p">)</span>
+</pre></div>
+
+
+<h4>No transaction costs</h4>
+<p>We first consider the results in the no-transaction-costs case. We plot the density estimates of the total PnLs in both cases. Below we see that both are centered at zero, with the RLHedger case having slightly fatter tail. Performing the Welch two-sample t-test, we find that the means of the two cases are not statistically significantly different.</p>
+<div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">pnls</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;RLHedger&#39;</span><span class="p">)</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">pnls_ref</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BSMHedger&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_35_1.png"></p>
+<div class="highlight"><pre><span></span><span class="n">si</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">pnls</span><span class="p">,</span> <span class="n">pnls_ref</span><span class="p">,</span> <span class="n">equal_var</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="n">Ttest_indResult</span><span class="p">(</span><span class="n">statistic</span><span class="o">=-</span><span class="mi">0</span><span class="p">.</span><span class="mi">005393764800999482</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">=</span><span class="mi">0</span><span class="p">.</span><span class="mi">9956964757476952</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Let us dig into a specific episode. We first plot the stock prices for this episode.</p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">prices</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_38_1.png"></p>
+<p>Next we print out the total PnLs and plot the evolution of the PnLs for both RLHedger and BSMHedger. In both cases, there are some small residual total PnLs.</p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">opt_pnl</span> <span class="o">+</span> <span class="n">env</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">opt_pnl</span> <span class="o">+</span> <span class="n">env</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">))</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="mi">1</span><span class="p">.</span><span class="mi">0714312643296595</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_40_1.png"></p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env_ref</span><span class="o">.</span><span class="n">opt_pnl</span> <span class="o">+</span> <span class="n">env_ref</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">env_ref</span><span class="o">.</span><span class="n">opt_pnl</span> <span class="o">+</span> <span class="n">env_ref</span><span class="o">.</span><span class="n">stock_pnl</span><span class="p">))</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="mi">11</span><span class="p">.</span><span class="mi">22226031466913</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_41_1.png"></p>
+<p>Next we compare the evolution of the number of shares held short by the RLHedger and the delta of the option. Qualitatively, they look similar.</p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">num_shares_hist</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_43_1.png"></p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">deltas</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_44_1.png"></p>
+<h4>With transaction costs</h4>
+<p>Now we consider the case with transaction costs. Looking at the density estimates of the total PnLs, we clearly see a significant difference, and indeed this is also verified by the Welch two-sample t-test (p value 0.0).</p>
+<div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">pnls_cost</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;RLHedger&#39;</span><span class="p">)</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">pnls_ref_cost</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BSMHedger&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_46_1.png"></p>
+<div class="highlight"><pre><span></span><span class="n">si</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">pnls_cost</span><span class="p">,</span> <span class="n">pnls_ref_cost</span><span class="p">,</span> <span class="n">equal_var</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="n">Ttest_indResult</span><span class="p">(</span><span class="n">statistic</span><span class="o">=</span><span class="mi">147</span><span class="p">.</span><span class="mi">77669475319246</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">=</span><span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Unlike in the paper, we do find the realized volatility of the PnLs are significantly different for the two cases.</p>
+<div class="highlight"><pre><span></span><span class="n">vols_cost</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">pnls_info_cost</span><span class="p">]</span>
+<span class="n">vols_ref_cost</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">pnls_info_ref_cost</span><span class="p">]</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">vols_cost</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;RLHedger&#39;</span><span class="p">)</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">vols_ref_cost</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BSMHedger&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_50_1.png"></p>
+<div class="highlight"><pre><span></span><span class="n">si</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">vols_cost</span><span class="p">,</span> <span class="n">vols_ref_cost</span><span class="p">,</span> <span class="n">equal_var</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="n">Ttest_indResult</span><span class="p">(</span><span class="n">statistic</span><span class="o">=-</span><span class="mi">31</span><span class="p">.</span><span class="mi">544498387590423</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">=</span><span class="mi">8</span><span class="p">.</span><span class="mi">290086183138852</span><span class="n">e</span><span class="o">-</span><span class="mi">213</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Next we show the density estimates of the total costs. It is clear that the costs for the BSMHedger is significantly higher compared to those for the RLHedger.</p>
+<div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">costs_cost</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;RLHedger&#39;</span><span class="p">)</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">costs_ref_cost</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BSMHedger&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_53_1.png"></p>
+<p>Similar to the paper, we also compute and plot the density estimates of the t-statistics of the PnLs in both cases. The plot shows that the PnLs in the BSMHedger case are more significantly different from zero compared to the PnLs in the RLHedger case.</p>
+<div class="highlight"><pre><span></span><span class="n">tstats_cost</span> <span class="o">=</span> <span class="n">si</span><span class="o">.</span><span class="n">ttest_1samp</span><span class="p">(</span><span class="n">pnls_info_cost</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+<span class="n">tstats_ref_cost</span> <span class="o">=</span> <span class="n">si</span><span class="o">.</span><span class="n">ttest_1samp</span><span class="p">(</span><span class="n">pnls_info_ref_cost</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</pre></div>
+
+
+<div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">tstats_cost</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;RLHedger&#39;</span><span class="p">)</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">tstats_ref_cost</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BSMHedger&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_56_1.png"></p>
+<p>Next we consider a particular episode, in particular, comparing the number of shares held short versus the delta for the RLHedger case. Here we see that the RLHedger case performs the hedging more gradually compared to what is suggested by the delta; for instance, in the beginning, even though delta is higher (around 0.5 since in the beginning the option is at the money), the RLHedger starts with shorting around 20 shares of stock.</p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env_cost</span><span class="o">.</span><span class="n">num_shares_hist</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_58_1.png"></p>
+<div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">env_cost</span><span class="o">.</span><span class="n">deltas</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="png" src="/images/kolm_ritter/output_59_1.png"></p>
+<h3>Saving models</h3>
+<p>Let us now save the learned catboost models.</p>
+<div class="highlight"><pre><span></span><span class="n">hedger</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s1">&#39;catboost_nocost&#39;</span><span class="p">)</span>
+<span class="n">hedger_cost</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s1">&#39;caboost_cost&#39;</span><span class="p">)</span>
+</pre></div>
+  </div>
+  <div class="tag-cloud">
+    <p>
+    </p>
+  </div>
+
+
+
+
+
+<!-- Disqus -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'irustandi-github-io';
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>
+        Please enable JavaScript to view comments.
+
+</noscript>
+<!-- End Disqus -->
+</article>
+
+    <footer>
+<p>&copy;  </p>
+<p>    Powered by <a href="http://getpelican.com" target="_blank">Pelican</a> - <a href="https://github.com/alexandrevicenzi/flex" target="_blank">Flex</a> theme by <a href="http://alexandrevicenzi.com" target="_blank">Alexandre Vicenzi</a>
+</p>    </footer>
+  </main>
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context" : "http://schema.org",
+  "@type" : "Blog",
+  "name": " Indra's Technical Musings ",
+  "url" : "",
+  "image": "",
+  "description": ""
+}
+</script>
+
+</body>
+</html>
