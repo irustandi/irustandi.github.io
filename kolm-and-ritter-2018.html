@@ -189,13 +189,13 @@
 
 <p><img alt="png" src="/images/kolm_ritter/output_8_1.png"></p>
 <p>Looks reasonable. Now we are ready to implement our simulation environment. We follow the interface of <a href="https://github.com/openai/gym/blob/master/docs/creating-environments.md">OpenAI gym's environment</a>. We also implement the transaction cost calculator, following the formula used in the paper:</p>
-<p>$$
+<div class="math">$$
 \mathrm{cost}(n) = \mathrm{multiplier} \times \mathrm{TickSize} \times (|n| + 0.01 n^2)
-$$</p>
+$$</div>
 <p>When this calculator is passed to our environment, the costs of our transactions will be included in the reward. The basic reward follows equation (10) in the paper:</p>
-<p>$$
+<div class="math">$$
 R_t := \delta w_t - \frac{\kappa}{2}(\delta w_t)^2
-$$</p>
+$$</div>
 <p>Our state space consists of </p>
 <ul>
 <li>stock price</li>
@@ -362,7 +362,7 @@ $$</p>
 
 
 <p>Last but not least, we have our reinforcement-learning hedger. The key member of the hedger is <code>model</code>; <code>model</code> is a model of the Q function, i.e. the mapping between a state-action pair to the corresponding value; it represents the value of taking the action given a particular state. In a given state, the policy then is to select the action with the maximal value given by the Q function when combined with the given state.</p>
-<p>The hedger can be in training mode or evaluation mode. In the training mode, we try to learn <code>model</code> while in the evaluation mode, the hedger applies the trained <code>model</code> to decide the hedging action. Before <code>model</code> is learned (initialized), the hedger always takes random actions, while after initialization, the hedger can perform $\epsilon$-greedy exploration of the actions during training. At the end of each batch, we fit <code>model</code> based on the rewards obtained in that batch.</p>
+<p>The hedger can be in training mode or evaluation mode. In the training mode, we try to learn <code>model</code> while in the evaluation mode, the hedger applies the trained <code>model</code> to decide the hedging action. Before <code>model</code> is learned (initialized), the hedger always takes random actions, while after initialization, the hedger can perform <span class="math">\(\epsilon\)</span>-greedy exploration of the actions during training. At the end of each batch, we fit <code>model</code> based on the rewards obtained in that batch.</p>
 <p>In the paper, there is not much detail about what they use as <code>model</code>, besides the fact that it is a nonlinear regression model. Here, we use the catboost regressor from the <a href="https://catboost.ai/">catboost</a> package, but the hedger interface itself is agnostic to this detail as long as it can call the <a href="https://scikit-learn.org/stable/index.html">sklearn</a> API (<code>fit()</code> and <code>predict()</code>) on <code>model</code>.</p>
 <p>We note that the procedure done here is somewhat similar to the one described in <a href="http://jmlr.csail.mit.edu/papers/volume6/ernst05a/ernst05a.pdf">Ernst, et al (2005)</a>.</p>
 <div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">RLHedger</span><span class="p">(</span><span class="n">Hedger</span><span class="p">):</span>
@@ -721,6 +721,70 @@ $$</p>
 <div class="highlight"><pre><span></span><span class="n">hedger</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s1">&#39;catboost_nocost&#39;</span><span class="p">)</span>
 <span class="n">hedger_cost</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s1">&#39;caboost_cost&#39;</span><span class="p">)</span>
 </pre></div>
+
+
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
   </div>
   <div class="tag-cloud">
     <p>
