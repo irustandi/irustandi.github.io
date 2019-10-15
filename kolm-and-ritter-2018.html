@@ -525,7 +525,7 @@ $$</div>
             <span class="n">pnl_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl_curr</span><span class="p">)</span>
             <span class="n">pnl</span> <span class="o">+=</span> <span class="n">pnl_curr</span>
             <span class="n">cost</span> <span class="o">+=</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">]</span>
-            <span class="n">hedger</span><span class="o">.</span><span class="n">on_step_end</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+            <span class="n">hedger_ref</span><span class="o">.</span><span class="n">on_step_end</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">reward</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
 
         <span class="n">hedger_ref</span><span class="o">.</span><span class="n">on_episode_end</span><span class="p">(</span><span class="n">env_ref</span><span class="p">)</span>
         <span class="n">pnls_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pnl</span><span class="p">)</span>
