@@ -482,7 +482,7 @@ def run_test(env, hedger, env_ref, hedger_ref, nepisodes):
             pnl_list.append(pnl_curr)
             pnl += pnl_curr
             cost += info['cost']
-            hedger.on_step_end(state, reward, info)
+            hedger_ref.on_step_end(state, reward, info)
             
         hedger_ref.on_episode_end(env_ref)
         pnls_ref.append(pnl)
