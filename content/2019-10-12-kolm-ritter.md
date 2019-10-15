@@ -834,5 +834,5 @@ Let us now save the learned catboost models.
 
 ```python
 hedger.model.save_model('catboost_nocost')
-hedger_cost.model.save_model('caboost_cost')
+hedger_cost.model.save_model('catboost_cost')
 ```
