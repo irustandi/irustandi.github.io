@@ -117,26 +117,6 @@ mcmc.run(torch.tensor(coal_df['year'].to_numpy(), dtype=torch.float), torch.tens
 mcmc.summary(prob=0.5)
 ```
 
-    HBox(children=(HTML(value='Warmup [1]'), FloatProgress(value=0.0, max=1000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value='Warmup [2]'), FloatProgress(value=0.0, max=1000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value='Warmup [3]'), FloatProgress(value=0.0, max=1000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value='Warmup [4]'), FloatProgress(value=0.0, max=1000.0), HTML(value='')))
-
-
-
-
-
-
-
                     mean       std    median     25.0%     75.0%     n_eff     r_hat
              T   1890.14      2.39   1890.45   1889.52   1892.00    114.73      1.05
            mu0      3.17      0.30      3.14      2.90      3.29     49.39      1.09
@@ -180,26 +160,6 @@ rng_key = random.PRNGKey(0)
 mcmc.run(rng_key, coal_df['year'].to_numpy(), coal_df['count'].to_numpy())
 mcmc.print_summary()
 ```
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-
-
-
 
                     mean       std    median      5.0%     95.0%     n_eff     r_hat
              T   1890.30      2.43   1890.52   1886.00   1893.04   1324.71      1.00
@@ -251,26 +211,6 @@ rng_key = random.PRNGKey(0)
 mcmc.run(rng_key, coal_df['year'].to_numpy(), coal_df['count'].to_numpy())
 mcmc.print_summary()
 ```
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-    HBox(children=(HTML(value=''), FloatProgress(value=0.0, max=20000.0), HTML(value='')))
-
-
-
-
-
-
 
                     mean       std    median      5.0%     95.0%     n_eff     r_hat
              T   1890.01      2.46   1890.26   1886.01   1892.93   2165.32      1.00
