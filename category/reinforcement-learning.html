@@ -8,12 +8,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="" />
 
-  <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro|Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
 
-  <link rel="stylesheet" type="text/css" href="/theme/pygments/github.min.css">
-  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/font-awesome.min.css">
+
+    <link id="pygments-light-theme" rel="stylesheet" type="text/css"
+          href="/theme/pygments/github.min.css">
+
+
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/fontawesome.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/brands.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/solid.css">
 
 
 
@@ -40,26 +46,36 @@
 <meta property="og:locale" content="en_US"/>
 <meta property="og:url" content=""/>
 
-  <title>Indra's Technical Musings &ndash;     Category reinforcement learning
-</title>
+  <title>Indra's Technical Musings &ndash; Category reinforcement learning</title>
 
 </head>
-<body>
+<body class="light-theme">
   <aside>
     <div>
       <a href="">
         <img src="/theme/img/profile.png" alt="" title="">
       </a>
-      <h1><a href=""></a></h1>
+
+      <h1>
+        <a href=""></a>
+      </h1>
+
 
 
 
       <ul class="social">
-        <li><a class="sc-linkedin" href="https://www.linkedin.com/in/indrayana-rustandi-a624494/" target="_blank"><i class="fa fa-linkedin"></i></a></li>
-        <li><a class="sc-github" href="https://github.com/irustandi/" target="_blank"><i class="fa fa-github"></i></a></li>
+          <li>
+            <a  class="sc-linkedin" href="https://www.linkedin.com/in/indrayana-rustandi-a624494/" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-github" href="https://github.com/irustandi/" target="_blank">
+              <i class="fab fa-github"></i>
+            </a>
+          </li>
       </ul>
     </div>
-
 
   </aside>
   <main>
@@ -71,23 +87,23 @@
   <header>
     <h2><a href="/kolm-and-ritter-2018.html#kolm-and-ritter-2018">Kolm and Ritter (2018)</a></h2>
     <p>
-          Posted on Sat 12 October 2019 in <a href="/category/reinforcement-learning.html">reinforcement learning</a>
-
+      Posted on Sat 12 October 2019 in <a href="/category/reinforcement-learning.html">reinforcement learning</a>
 
 
     </p>
   </header>
   <div>
-      <div class="highlight"><pre><span></span><span class="o">%</span><span class="n">reload_ext</span> <span class="n">autoreload</span>
+      <div class="highlight"><pre><span></span><code><span class="o">%</span><span class="n">reload_ext</span> <span class="n">autoreload</span>
 <span class="o">%</span><span class="n">autoreload</span> <span class="mi">2</span>
 <span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
-</pre></div>
-
+</code></pre></div>
 
 <p>In an <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3281235">SSRN paper</a>, Petter Kolm and Gordon Ritter present the application of reinforcement learning for model-free European call option hedging. Unfortunately, there does not seem to be any code made available to accompany this paper. Here we try to replicate the results of …</p>
-      <br>
-      <a class="btn" href="/kolm-and-ritter-2018.html#kolm-and-ritter-2018">    Continue reading
-</a>
+        <br>
+        <a class="btn"
+           href="/kolm-and-ritter-2018.html#kolm-and-ritter-2018">
+          Continue reading
+        </a>
   </div>
 </article>
 
@@ -96,10 +112,10 @@
 
 
 
-
     <footer>
 <p>&copy;  </p>
-<p>    Powered by <a href="http://getpelican.com" target="_blank">Pelican</a> - <a href="https://github.com/alexandrevicenzi/flex" target="_blank">Flex</a> theme by <a href="http://alexandrevicenzi.com" target="_blank">Alexandre Vicenzi</a>
+<p>
+Built with <a href="http://getpelican.com" target="_blank">Pelican</a> using <a href="http://bit.ly/flex-pelican" target="_blank">Flex</a> theme
 </p>    </footer>
   </main>
 
@@ -116,6 +132,7 @@
   "description": ""
 }
 </script>
+
 
 </body>
 </html>

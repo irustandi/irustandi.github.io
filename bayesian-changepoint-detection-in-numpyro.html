@@ -1,0 +1,550 @@
+
+<!DOCTYPE html>
+<html lang="english">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
+
+
+    <link id="pygments-light-theme" rel="stylesheet" type="text/css"
+          href="/theme/pygments/github.min.css">
+
+
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/fontawesome.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/brands.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/solid.css">
+
+
+
+
+
+<!-- Google Analytics -->
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-148456981-1', 'auto');
+  ga('send', 'pageview');
+</script>
+<!-- End Google Analytics -->
+
+<meta name="author" content="Indrayana Rustandi" />
+<meta name="description" content="Chad Scherrer has a blog post about how to do Bayesian changepoint detection in PyMC3, in the context of detecting changepoint associated with the yearly number of coal mining disasters. Here we will see how to implement the same model in Pyro, a probabilistic programming language and environment using PyTorch …" />
+<meta name="keywords" content="">
+
+
+<meta property="og:site_name" content="Indra's Technical Musings"/>
+<meta property="og:title" content="Bayesian Changepoint Detection in (Num)Pyro"/>
+<meta property="og:description" content="Chad Scherrer has a blog post about how to do Bayesian changepoint detection in PyMC3, in the context of detecting changepoint associated with the yearly number of coal mining disasters. Here we will see how to implement the same model in Pyro, a probabilistic programming language and environment using PyTorch …"/>
+<meta property="og:locale" content="en_US"/>
+<meta property="og:url" content="/bayesian-changepoint-detection-in-numpyro.html"/>
+<meta property="og:type" content="article"/>
+<meta property="article:published_time" content="2021-06-08 09:00:00-04:00"/>
+<meta property="article:modified_time" content=""/>
+<meta property="article:author" content="/author/indrayana-rustandi.html">
+<meta property="article:section" content="probabilistic programming, changepoint detection, Bayesian"/>
+<meta property="og:image" content="">
+
+  <title>Indra's Technical Musings &ndash; Bayesian Changepoint Detection in (Num)Pyro</title>
+
+</head>
+<body class="light-theme">
+  <aside>
+    <div>
+      <a href="">
+        <img src="/theme/img/profile.png" alt="" title="">
+      </a>
+
+      <h1>
+        <a href=""></a>
+      </h1>
+
+
+
+
+      <ul class="social">
+          <li>
+            <a  class="sc-linkedin" href="https://www.linkedin.com/in/indrayana-rustandi-a624494/" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-github" href="https://github.com/irustandi/" target="_blank">
+              <i class="fab fa-github"></i>
+            </a>
+          </li>
+      </ul>
+    </div>
+
+  </aside>
+  <main>
+
+
+<article class="single">
+  <header>
+      
+    <h1 id="bayesian-changepoint-detection-in-numpyro">Bayesian Changepoint Detection in (Num)Pyro</h1>
+    <p>
+      Posted on Tue 08 June 2021 in <a href="/category/probabilistic-programming-changepoint-detection-bayesian.html">probabilistic programming, changepoint detection, Bayesian</a>
+
+    </p>
+  </header>
+
+
+  <div>
+    <p>Chad Scherrer has a <a href="https://cscherrer.github.io/post/bayesian-changepoint/">blog post</a> about how to do Bayesian changepoint detection in PyMC3, in the context of detecting changepoint associated with the yearly number of coal mining disasters. Here we will see how to implement the same model in <a href="https://pyro.ai">Pyro</a>, a probabilistic programming language and environment using <a href="https://pytorch.org">PyTorch</a> as its backend, and also <a href="http://num.pyro.ai/en/latest/index.html">NumPyro</a>, a variant of Pyro with <a href="https://github.com/google/jax">Jax</a> backend. Note that although Pyro and NumPyro support running the computation using GPU, here are we are going to stick with CPU.</p>
+<p>Let us start by setting up the necessary packages. For visualization, we are using the standard <a href="https://matplotlib.org">matplotlib</a> package along with the <a href="https://plotnine.readthedocs.io/en/stable/index.html">plotnine</a> package. The reason for plotnine is it allows us to use <a href="https://ggplot2.tidyverse.org">ggplot2</a>-like syntax for plotting.</p>
+<div class="highlight"><pre><span></span><code><span class="o">%</span><span class="n">reload_ext</span> <span class="n">autoreload</span>
+<span class="o">%</span><span class="n">autoreload</span> <span class="mi">2</span>
+<span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">import</span> <span class="nn">pyro</span>
+<span class="kn">import</span> <span class="nn">pyro.infer</span>
+<span class="kn">import</span> <span class="nn">pyro.distributions</span> <span class="k">as</span> <span class="nn">pyrodist</span>
+
+<span class="kn">import</span> <span class="nn">numpyro</span>
+<span class="kn">import</span> <span class="nn">numpyro.infer</span>
+<span class="kn">import</span> <span class="nn">numpyro.distributions</span> <span class="k">as</span> <span class="nn">numpyrodist</span>
+
+<span class="kn">from</span> <span class="nn">jax</span> <span class="kn">import</span> <span class="n">random</span>
+
+<span class="n">numpyro</span><span class="o">.</span><span class="n">set_platform</span><span class="p">(</span><span class="s1">&#39;cpu&#39;</span><span class="p">)</span>
+<span class="n">numpyro</span><span class="o">.</span><span class="n">set_host_device_count</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">plotnine</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">&#39;seaborn&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Next, let us load and check the data.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># from http://people.reed.edu/~jones/141/Coal.html</span>
+<span class="n">coal_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+    <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1851</span><span class="p">,</span> <span class="mi">1852</span><span class="p">,</span> <span class="mi">1853</span><span class="p">,</span> <span class="mi">1854</span><span class="p">,</span> <span class="mi">1855</span><span class="p">,</span>
+<span class="mi">1856</span><span class="p">,</span> <span class="mi">1857</span><span class="p">,</span> <span class="mi">1858</span><span class="p">,</span> <span class="mi">1859</span><span class="p">,</span> <span class="mi">1860</span><span class="p">,</span> <span class="mi">1861</span><span class="p">,</span> <span class="mi">1862</span><span class="p">,</span> <span class="mi">1863</span><span class="p">,</span> <span class="mi">1864</span><span class="p">,</span> <span class="mi">1865</span><span class="p">,</span> <span class="mi">1866</span><span class="p">,</span>
+<span class="mi">1867</span><span class="p">,</span> <span class="mi">1868</span><span class="p">,</span> <span class="mi">1869</span><span class="p">,</span> <span class="mi">1870</span><span class="p">,</span> <span class="mi">1871</span><span class="p">,</span> <span class="mi">1872</span><span class="p">,</span> <span class="mi">1873</span><span class="p">,</span> <span class="mi">1874</span><span class="p">,</span> <span class="mi">1875</span><span class="p">,</span> <span class="mi">1876</span><span class="p">,</span> <span class="mi">1877</span><span class="p">,</span>
+<span class="mi">1878</span><span class="p">,</span> <span class="mi">1879</span><span class="p">,</span> <span class="mi">1880</span><span class="p">,</span> <span class="mi">1881</span><span class="p">,</span> <span class="mi">1882</span><span class="p">,</span> <span class="mi">1883</span><span class="p">,</span> <span class="mi">1884</span><span class="p">,</span> <span class="mi">1885</span><span class="p">,</span> <span class="mi">1886</span><span class="p">,</span> <span class="mi">1887</span><span class="p">,</span> <span class="mi">1888</span><span class="p">,</span>
+<span class="mi">1889</span><span class="p">,</span> <span class="mi">1890</span><span class="p">,</span> <span class="mi">1891</span><span class="p">,</span> <span class="mi">1892</span><span class="p">,</span> <span class="mi">1893</span><span class="p">,</span> <span class="mi">1894</span><span class="p">,</span> <span class="mi">1895</span><span class="p">,</span> <span class="mi">1896</span><span class="p">,</span> <span class="mi">1897</span><span class="p">,</span> <span class="mi">1898</span><span class="p">,</span> <span class="mi">1899</span><span class="p">,</span>
+<span class="mi">1900</span><span class="p">,</span> <span class="mi">1901</span><span class="p">,</span> <span class="mi">1902</span><span class="p">,</span> <span class="mi">1903</span><span class="p">,</span> <span class="mi">1904</span><span class="p">,</span> <span class="mi">1905</span><span class="p">,</span> <span class="mi">1906</span><span class="p">,</span> <span class="mi">1907</span><span class="p">,</span> <span class="mi">1908</span><span class="p">,</span> <span class="mi">1909</span><span class="p">,</span> <span class="mi">1910</span><span class="p">,</span>
+<span class="mi">1911</span><span class="p">,</span> <span class="mi">1912</span><span class="p">,</span> <span class="mi">1913</span><span class="p">,</span> <span class="mi">1914</span><span class="p">,</span> <span class="mi">1915</span><span class="p">,</span> <span class="mi">1916</span><span class="p">,</span> <span class="mi">1917</span><span class="p">,</span> <span class="mi">1918</span><span class="p">,</span> <span class="mi">1919</span><span class="p">,</span> <span class="mi">1920</span><span class="p">,</span> <span class="mi">1921</span><span class="p">,</span>
+<span class="mi">1922</span><span class="p">,</span> <span class="mi">1923</span><span class="p">,</span> <span class="mi">1924</span><span class="p">,</span> <span class="mi">1925</span><span class="p">,</span> <span class="mi">1926</span><span class="p">,</span> <span class="mi">1927</span><span class="p">,</span> <span class="mi">1928</span><span class="p">,</span> <span class="mi">1929</span><span class="p">,</span> <span class="mi">1930</span><span class="p">,</span> <span class="mi">1931</span><span class="p">,</span> <span class="mi">1932</span><span class="p">,</span>
+<span class="mi">1933</span><span class="p">,</span> <span class="mi">1934</span><span class="p">,</span> <span class="mi">1935</span><span class="p">,</span> <span class="mi">1936</span><span class="p">,</span> <span class="mi">1937</span><span class="p">,</span> <span class="mi">1938</span><span class="p">,</span> <span class="mi">1939</span><span class="p">,</span> <span class="mi">1940</span><span class="p">,</span> <span class="mi">1941</span><span class="p">,</span> <span class="mi">1942</span><span class="p">,</span> <span class="mi">1943</span><span class="p">,</span>
+<span class="mi">1944</span><span class="p">,</span> <span class="mi">1945</span><span class="p">,</span> <span class="mi">1946</span><span class="p">,</span> <span class="mi">1947</span><span class="p">,</span> <span class="mi">1948</span><span class="p">,</span> <span class="mi">1949</span><span class="p">,</span> <span class="mi">1950</span><span class="p">,</span> <span class="mi">1951</span><span class="p">,</span> <span class="mi">1952</span><span class="p">,</span> <span class="mi">1953</span><span class="p">,</span> <span class="mi">1954</span><span class="p">,</span>
+<span class="mi">1955</span><span class="p">,</span> <span class="mi">1956</span><span class="p">,</span> <span class="mi">1957</span><span class="p">,</span> <span class="mi">1958</span><span class="p">,</span> <span class="mi">1959</span><span class="p">,</span> <span class="mi">1960</span><span class="p">,</span> <span class="mi">1961</span><span class="p">,</span> <span class="mi">1962</span><span class="p">],</span>
+    <span class="s1">&#39;count&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span>
+<span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+<span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+<span class="p">})</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">])</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>&lt;BarContainer object of 112 artists&gt;
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_5_1.png"></p>
+<p>So we confirm that we are using the same data as the one used by Chad Scherrer. We are now ready for the model; for simplicity, we use the same model as used by Chad Scherrer:</p>
+<div class="math">$$
+\begin{align*}
+T &amp;\sim \mathrm{Uniform}(1860, 1960) \\
+\mu_0 &amp;\sim \mathrm{Normal}^+(0, 4) \\
+\mu_1 &amp;\sim \mathrm{Normal}^+(0, 4) \\
+n_t &amp;\sim \mathrm{Poisson}(\mu_{[t &gt; T]})
+\end{align*}
+$$</div>
+<p>We are ready to implement this model in Pyro. In Pyro, a model is implemented as a function with the necessary calls to some Pyro primitives. More information is available <a href="http://pyro.ai/examples/intro_part_i.html">here</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">changepoint_model_pyro</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+    <span class="c1"># point where distribution changes</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">pyrodist</span><span class="o">.</span><span class="n">Uniform</span><span class="p">(</span><span class="mi">1860</span><span class="p">,</span> <span class="mi">1960</span><span class="p">))</span>
+    <span class="n">mu0</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;mu0&#39;</span><span class="p">,</span> <span class="n">pyrodist</span><span class="o">.</span><span class="n">HalfNormal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">4.</span><span class="p">))</span>
+    <span class="n">mu1</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;mu1&#39;</span><span class="p">,</span> <span class="n">pyrodist</span><span class="o">.</span><span class="n">HalfNormal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">4.</span><span class="p">))</span>
+
+    <span class="n">num_years</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">year</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">pyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s1">&#39;num_years&#39;</span><span class="p">,</span> <span class="n">num_years</span><span class="p">)</span> <span class="k">as</span> <span class="n">index</span><span class="p">:</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">mu1</span> <span class="o">*</span> <span class="p">(</span><span class="n">year</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">mu0</span> <span class="o">*</span> <span class="p">(</span><span class="n">year</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">T</span><span class="p">)</span>
+
+        <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;obs&#39;</span><span class="p">,</span> <span class="n">pyrodist</span><span class="o">.</span><span class="n">Poisson</span><span class="p">(</span><span class="n">mu</span><span class="p">),</span> <span class="n">obs</span><span class="o">=</span><span class="n">count</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+</code></pre></div>
+
+<p>Let us now do inference. In particular, here we are interested in the posterior distributions for <span class="math">\(T, \mu_0, \mu_1\)</span>. In the original blog post, inference is done using Markov Chain Monte Carlo (MCMC) as implemented in <a href="https://docs.pymc.io">PyMC3</a>; we are going to follow the MCMC route also and in particular we use the <a href="https://arxiv.org/abs/1111.4246v1">NUTS</a> sampler implemented in Pyro. As a note, Pyro also supports an alternative way to do inference by using <a href="https://arxiv.org/abs/1206.7051">stochastic variational inference</a>, more details on how to do this <a href="http://pyro.ai/examples/svi_part_i.html">here</a>, <a href="http://pyro.ai/examples/svi_part_ii.html">here</a>, <a href="http://pyro.ai/examples/svi_part_iii.html">here</a>, and <a href="http://pyro.ai/examples/svi_part_iv.html">here</a>.</p>
+<p>For our inference, we are going to generate 500 samples for warmup, and 500 samples for the actual inference. Four chains will be generated; in Pyro, a CPU core will be dedicated for each chain.</p>
+<div class="highlight"><pre><span></span><code><span class="n">num_samples</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="n">warmup_steps</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="n">num_chains</span> <span class="o">=</span> <span class="mi">4</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">nuts_kernel</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">NUTS</span><span class="p">(</span><span class="n">changepoint_model_pyro</span><span class="p">)</span>
+<span class="n">mcmc</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">MCMC</span><span class="p">(</span><span class="n">nuts_kernel</span><span class="p">,</span>
+                       <span class="n">num_samples</span><span class="o">=</span><span class="n">num_samples</span><span class="p">,</span>
+                       <span class="n">warmup_steps</span><span class="o">=</span><span class="n">warmup_steps</span><span class="p">,</span>
+                       <span class="n">num_chains</span><span class="o">=</span><span class="n">num_chains</span><span class="p">)</span>
+<span class="n">mcmc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">))</span>
+<span class="n">mcmc</span><span class="o">.</span><span class="n">summary</span><span class="p">(</span><span class="n">prob</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>HBox(children=(HTML(value=&#39;Warmup [1]&#39;), FloatProgress(value=0.0, max=1000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;Warmup [2]&#39;), FloatProgress(value=0.0, max=1000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;Warmup [3]&#39;), FloatProgress(value=0.0, max=1000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;Warmup [4]&#39;), FloatProgress(value=0.0, max=1000.0), HTML(value=&#39;&#39;)))
+
+
+
+
+
+
+
+                mean       std    median     25.0%     75.0%     n_eff     r_hat
+         T   1890.14      2.39   1890.45   1889.52   1892.00    114.73      1.05
+       mu0      3.17      0.30      3.14      2.90      3.29     49.39      1.09
+       mu1      0.94      0.11      0.94      0.85      1.00    165.78      1.02
+
+Number of divergences: 0
+</code></pre></div>
+
+<p>On my machine with Intel Xeon E5-2680 v4, inference takes quite slow to run, even with a total of only 1000 samples. In particular, generating the samples seems relatively time consuming, taking about 2-3 seconds per sample.</p>
+<p>We also see some summary statistics of the parameters based on the MCMC run. The first to note is that the number of divergences is zero, which indicates no parameters diverge. This is a good sign. On the other hand, the <code>r_hat</code> values are above 1.00, which indicates that convergence has not been reached. Also the effective sample sizes (<code>n_eff</code>) seem pretty low, ranging from 80 to 116 out of the 500 post-warmup samples.</p>
+<p>So it seems we need more samples. But on the other hand, the above run was quite slow. Would using NumPyro instead help? Let us check it out.</p>
+<p>As you can see below, translating a Pyro model to NumPyro is pretty straightforward, we just need to make sure that the appropriate packages are used, and in NumPyro, we need to pass Jax's pseudorandom number generator key as the first argument when running MCMC. Let us see how this runs.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">changepoint_model_numpyro</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+    <span class="c1"># point where distribution changes</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">Uniform</span><span class="p">(</span><span class="mi">1860</span><span class="p">,</span> <span class="mi">1960</span><span class="p">))</span>
+    <span class="n">mu0</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;mu0&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">HalfNormal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">4.</span><span class="p">))</span>
+    <span class="n">mu1</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;mu1&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">HalfNormal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">4.</span><span class="p">))</span>
+
+    <span class="n">num_years</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">year</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s1">&#39;num_years&#39;</span><span class="p">,</span> <span class="n">num_years</span><span class="p">):</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">mu1</span> <span class="o">*</span> <span class="p">(</span><span class="n">year</span> <span class="o">&gt;</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">mu0</span> <span class="o">*</span> <span class="p">(</span><span class="n">year</span> <span class="o">&lt;=</span> <span class="n">T</span><span class="p">)</span>
+
+        <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;obs&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">Poisson</span><span class="p">(</span><span class="n">mu</span><span class="p">),</span> <span class="n">obs</span><span class="o">=</span><span class="n">count</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">num_samples</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="n">warmup_steps</span> <span class="o">=</span> <span class="mi">10000</span>
+
+<span class="n">nuts_kernel</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">NUTS</span><span class="p">(</span><span class="n">changepoint_model_numpyro</span><span class="p">)</span>
+<span class="n">mcmc</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">MCMC</span><span class="p">(</span>
+    <span class="n">nuts_kernel</span><span class="p">,</span>
+    <span class="n">num_samples</span><span class="o">=</span><span class="n">num_samples</span><span class="p">,</span>
+    <span class="n">num_warmup</span><span class="o">=</span><span class="n">warmup_steps</span><span class="p">,</span>
+    <span class="n">num_chains</span><span class="o">=</span><span class="n">num_chains</span><span class="p">)</span>
+<span class="n">rng_key</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">mcmc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())</span>
+<span class="n">mcmc</span><span class="o">.</span><span class="n">print_summary</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+
+
+
+
+                mean       std    median      5.0%     95.0%     n_eff     r_hat
+         T   1890.30      2.43   1890.52   1886.00   1893.04   1324.71      1.00
+       mu0      3.13      0.29      3.12      2.67      3.61   1499.55      1.00
+       mu1      0.94      0.12      0.93      0.74      1.14   1535.97      1.00
+
+Number of divergences: 0
+</code></pre></div>
+
+<p>Wow, even with 20x the number of samples (10,000 warmup samples and 10,000 samples for inference), the code runs much faster, finishing in around a minute including the JIT compilation step in the beginning. With these many samples, we see from <code>r_hat</code> that they seem to have reached convergence. Still, the effective sample sizes from <code>n_eff</code> seem low, corresponding to less than 20% of the 10,000 actual samples. One consideration is re-evaluating the use of the <code>HalfNormal</code> distribution as priors for <span class="math">\(\mu_0\)</span> and <span class="math">\(\mu_1\)</span>. In particular, for the <code>Poisson</code> distribution, the conjugate prior is given by a <code>Gamma</code> distribution. If we use <code>Gamma</code> priors for <span class="math">\(\mu_0\)</span> and <span class="math">\(\mu_1\)</span>, would we see a bump in <code>n_eff</code>?</p>
+<p>Let us evaluate it by considering a revised model:</p>
+<div class="math">$$
+\begin{align*}
+T &amp;\sim \mathrm{Uniform}(1860, 1960) \\
+\mu_0 &amp;\sim \mathrm{Gamma}(5, 1) \\
+\mu_1 &amp;\sim \mathrm{Gamma}(5, 1) \\
+n_t &amp;\sim \mathrm{Poisson}(\mu_{[t &gt; T]})
+\end{align*}
+$$</div>
+<p>We implement and run this model below.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">changepoint_model_numpyro</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+    <span class="c1"># point where distribution changes</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">Uniform</span><span class="p">(</span><span class="mi">1860</span><span class="p">,</span> <span class="mi">1960</span><span class="p">))</span>
+    <span class="n">mu0</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;mu0&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">Gamma</span><span class="p">(</span><span class="mf">5.</span><span class="p">))</span>
+    <span class="n">mu1</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;mu1&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">Gamma</span><span class="p">(</span><span class="mf">5.</span><span class="p">))</span>
+
+    <span class="n">num_years</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">year</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s1">&#39;num_years&#39;</span><span class="p">,</span> <span class="n">num_years</span><span class="p">):</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">mu1</span> <span class="o">*</span> <span class="p">(</span><span class="n">year</span> <span class="o">&gt;</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">mu0</span> <span class="o">*</span> <span class="p">(</span><span class="n">year</span> <span class="o">&lt;=</span> <span class="n">T</span><span class="p">)</span>
+
+        <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">&#39;obs&#39;</span><span class="p">,</span> <span class="n">numpyrodist</span><span class="o">.</span><span class="n">Poisson</span><span class="p">(</span><span class="n">mu</span><span class="p">),</span> <span class="n">obs</span><span class="o">=</span><span class="n">count</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">num_samples</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="n">warmup_steps</span> <span class="o">=</span> <span class="mi">10000</span>
+
+<span class="n">nuts_kernel</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">NUTS</span><span class="p">(</span><span class="n">changepoint_model_numpyro</span><span class="p">)</span>
+<span class="n">mcmc</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">infer</span><span class="o">.</span><span class="n">MCMC</span><span class="p">(</span>
+    <span class="n">nuts_kernel</span><span class="p">,</span>
+    <span class="n">num_samples</span><span class="o">=</span><span class="n">num_samples</span><span class="p">,</span>
+    <span class="n">num_warmup</span><span class="o">=</span><span class="n">warmup_steps</span><span class="p">,</span>
+    <span class="n">num_chains</span><span class="o">=</span><span class="n">num_chains</span><span class="p">)</span>
+<span class="n">rng_key</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">mcmc</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">coal_df</span><span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())</span>
+<span class="n">mcmc</span><span class="o">.</span><span class="n">print_summary</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+HBox(children=(HTML(value=&#39;&#39;), FloatProgress(value=0.0, max=20000.0), HTML(value=&#39;&#39;)))
+
+
+
+
+
+
+
+                mean       std    median      5.0%     95.0%     n_eff     r_hat
+         T   1890.01      2.46   1890.26   1886.01   1892.93   2165.32      1.00
+       mu0      3.18      0.29      3.16      2.69      3.64   2270.01      1.00
+       mu1      0.98      0.12      0.98      0.79      1.19   2240.78      1.00
+
+Number of divergences: 0
+</code></pre></div>
+
+<p>Yes, we do manage to see a bump in <code>n_eff</code> to above 20% of the total samples. Not great, but we settle with this for now.</p>
+<p>In the next group of cells, we are going to visualize the posterior distributions for the parameters based on the samples. Let us first get the actual samples and store them in a pandas DataFrame.</p>
+<div class="highlight"><pre><span></span><code><span class="n">hmc_samples</span> <span class="o">=</span> <span class="n">mcmc</span><span class="o">.</span><span class="n">get_samples</span><span class="p">(</span><span class="n">group_by_chain</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">sample_dfs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">chain_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_chains</span><span class="p">):</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+        <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="n">hmc_samples</span><span class="p">[</span><span class="s1">&#39;T&#39;</span><span class="p">][</span><span class="n">chain_idx</span><span class="p">],</span>
+        <span class="s1">&#39;mu0&#39;</span><span class="p">:</span> <span class="n">hmc_samples</span><span class="p">[</span><span class="s1">&#39;mu0&#39;</span><span class="p">][</span><span class="n">chain_idx</span><span class="p">],</span>
+        <span class="s1">&#39;mu1&#39;</span><span class="p">:</span> <span class="n">hmc_samples</span><span class="p">[</span><span class="s1">&#39;mu1&#39;</span><span class="p">][</span><span class="n">chain_idx</span><span class="p">],</span>
+        <span class="s1">&#39;sample_index&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_samples</span><span class="p">),</span>
+    <span class="p">})</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;chain&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chain_idx</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">sample_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+<span class="n">sample_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">sample_dfs</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Let us visualize the distributions and plot the trace of samples. We do this for each chain.</p>
+<p>First, the plots for <span class="math">\(T\)</span>.</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span>
+    <span class="n">ggplot</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">aes</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">geom_density</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_20_0.png"></p>
+<div class="highlight"><pre><span></span><code>&lt;ggplot: (8744344050698)&gt;
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">(</span>
+    <span class="n">ggplot</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">aes</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;sample_index&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">geom_line</span><span class="p">()</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_21_0.png"></p>
+<div class="highlight"><pre><span></span><code>&lt;ggplot: (8744343967368)&gt;
+</code></pre></div>
+
+<p>Next the plots for <span class="math">\(\mu_0\)</span>.</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span>
+    <span class="n">ggplot</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">aes</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;mu0&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">geom_density</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_23_0.png"></p>
+<div class="highlight"><pre><span></span><code>&lt;ggplot: (8744343942813)&gt;
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">(</span>
+    <span class="n">ggplot</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">aes</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;sample_index&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;mu0&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">geom_line</span><span class="p">()</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_24_0.png"></p>
+<div class="highlight"><pre><span></span><code>&lt;ggplot: (8744343868314)&gt;
+</code></pre></div>
+
+<p>And finally, the plots for <span class="math">\(\mu_1\)</span>.</p>
+<div class="highlight"><pre><span></span><code><span class="p">(</span>
+    <span class="n">ggplot</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">aes</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;mu1&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">geom_density</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_26_0.png"></p>
+<div class="highlight"><pre><span></span><code>&lt;ggplot: (8744343839407)&gt;
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">(</span>
+    <span class="n">ggplot</span><span class="p">(</span><span class="n">sample_df</span><span class="p">,</span> <span class="n">aes</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;sample_index&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;mu1&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="s1">&#39;factor(chain)&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="n">geom_line</span><span class="p">()</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/images/bayesian_changepoint_numpyro/output_27_0.png"></p>
+<div class="highlight"><pre><span></span><code>&lt;ggplot: (8744343770902)&gt;
+</code></pre></div>
+
+<p>Some observations:</p>
+<ul>
+<li>For <span class="math">\(T\)</span>, we roughly see 3 modes in the posterior distribution. The highest mode is around 1891-1892.</li>
+<li>For <span class="math">\(\mu_0\)</span> and <span class="math">\(\mu_1\)</span>, the posterior distributions seem to be unimodal and symmetric. For <span class="math">\(\mu_0\)</span>, the mode is slightly above 3 (meaning a rate of roughly 3 mining disasters per year), while for <span class="math">\(\mu_1\)</span>, the mode is slightly below 1 (meaning a rate of slightless than 1 mining disaster per year).</li>
+</ul>
+<p>Last but not least, we see at least for this particular problem, NumPyro is much faster than Pyro. For future exploration, we can explore ways to reparametrize the model to increase <code>n_eff</code> further.</p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+  </div>
+  <div class="tag-cloud">
+    <p>
+    </p>
+  </div>
+
+
+
+
+
+<!-- Disqus -->
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'irustandi-github-io';
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>
+    Please enable JavaScript to view comments.
+</noscript>
+<!-- End Disqus -->
+</article>
+
+    <footer>
+<p>&copy;  </p>
+<p>
+Built with <a href="http://getpelican.com" target="_blank">Pelican</a> using <a href="http://bit.ly/flex-pelican" target="_blank">Flex</a> theme
+</p>    </footer>
+  </main>
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context" : "http://schema.org",
+  "@type" : "Blog",
+  "name": " Indra's Technical Musings ",
+  "url" : "",
+  "image": "",
+  "description": ""
+}
+</script>
+
+
+</body>
+</html>
