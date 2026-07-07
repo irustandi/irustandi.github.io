@@ -1,0 +1,50 @@
+theme = "blowfish"
+baseURL = "https://irustandi.github.io/"
+title = "Indra's Technical Musings"
+defaultContentLanguage = "en"
+timeZone = "America/New_York"
+enableRobotsTXT = true
+summaryLength = 30
+buildDrafts = false
+buildFuture = false
+enableEmoji = true
+disqusShortname = "irustandi-github-io"
+
+[pagination]
+  pagerSize = 10
+
+[imaging]
+  anchor = "Center"
+
+[taxonomies]
+  tag = "tags"
+  category = "categories"
+  author = "authors"
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[related]
+  threshold = 0
+  toLower = false
+
+  [[related.indices]]
+    name = "tags"
+    weight = 100
+
+  [[related.indices]]
+    name = "categories"
+    weight = 100
+
+  [[related.indices]]
+    name = "authors"
+    weight = 20
+
+  [[related.indices]]
+    name = "date"
+    weight = 10
+
+[sitemap]
+  changefreq = "daily"
+  filename = "sitemap.xml"
+  priority = 0.5

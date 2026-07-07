@@ -10,6 +10,9 @@ Thumbs.db
 .rvmrc
 
 output/
+public/
+resources/
+.hugo_build.lock
 __pycache__/
 
 .vscode/

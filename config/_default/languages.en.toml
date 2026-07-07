@@ -1,0 +1,22 @@
+disabled = false
+locale = "en"
+label = "English"
+weight = 1
+title = "Indra's Technical Musings"
+
+[params]
+  displayName = "EN"
+  isoCode = "en"
+  rtl = false
+  dateFormat = "2 January 2006"
+  description = "Technical notes on machine learning, probabilistic programming, and related explorations."
+  copyright = "Indrayana Rustandi"
+
+[params.author]
+  name = "Indrayana Rustandi"
+  headline = "Technical musings on machine learning and software."
+  bio = "Technical musings on machine learning and software."
+  links = [
+    { linkedin = "https://www.linkedin.com/in/indrayana-rustandi-a624494/" },
+    { github = "https://github.com/irustandi/" },
+  ]

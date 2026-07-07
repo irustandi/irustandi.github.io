@@ -1,6 +1,12 @@
-Title: Bayesian Changepoint Detection in (Num)Pyro
-Date: 2021-06-08 09:00
-Category: probabilistic programming, changepoint detection, Bayesian
+---
+title: "Bayesian Changepoint Detection in (Num)Pyro"
+date: 2021-06-08T09:00:00-04:00
+authors: ["Indrayana Rustandi"]
+categories: ["probabilistic programming, changepoint detection, Bayesian"]
+url: "/bayesian-changepoint-detection-in-numpyro.html"
+math: true
+showComments: true
+---
 
 Chad Scherrer has a [blog post](https://cscherrer.github.io/post/bayesian-changepoint/) about how to do Bayesian changepoint detection in PyMC3, in the context of detecting changepoint associated with the yearly number of coal mining disasters. Here we will see how to implement the same model in [Pyro](https://pyro.ai), a probabilistic programming language and environment using [PyTorch](https://pytorch.org) as its backend, and also [NumPyro](http://num.pyro.ai/en/latest/index.html), a variant of Pyro with [Jax](https://github.com/google/jax) backend. Note that although Pyro and NumPyro support running the computation using GPU, here are we are going to stick with CPU.
 
@@ -68,7 +74,7 @@ plt.bar(coal_df['year'], coal_df['count'])
 
     <BarContainer object of 112 artists>
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_5_1.png)
+![png](/images/bayesian_changepoint_numpyro/output_5_1.png)
 
 So we confirm that we are using the same data as the one used by Chad Scherrer. We are now ready for the model; for simplicity, we use the same model as used by Chad Scherrer:
 
@@ -250,7 +256,7 @@ First, the plots for $T$.
 )
 ```
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_20_0.png)
+![png](/images/bayesian_changepoint_numpyro/output_20_0.png)
 
     <ggplot: (8744344050698)>
 
@@ -260,7 +266,7 @@ First, the plots for $T$.
 )
 ```
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_21_0.png)
+![png](/images/bayesian_changepoint_numpyro/output_21_0.png)
 
     <ggplot: (8744343967368)>
 
@@ -272,7 +278,7 @@ Next the plots for $\mu_0$.
 )
 ```
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_23_0.png)
+![png](/images/bayesian_changepoint_numpyro/output_23_0.png)
 
     <ggplot: (8744343942813)>
 
@@ -282,7 +288,7 @@ Next the plots for $\mu_0$.
 )
 ```
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_24_0.png)
+![png](/images/bayesian_changepoint_numpyro/output_24_0.png)
 
     <ggplot: (8744343868314)>
 
@@ -294,7 +300,7 @@ And finally, the plots for $\mu_1$.
 )
 ```
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_26_0.png)
+![png](/images/bayesian_changepoint_numpyro/output_26_0.png)
 
     <ggplot: (8744343839407)>
 
@@ -304,7 +310,7 @@ And finally, the plots for $\mu_1$.
 )
 ```
 
-![png]({static}/images/bayesian_changepoint_numpyro/output_27_0.png)
+![png](/images/bayesian_changepoint_numpyro/output_27_0.png)
 
     <ggplot: (8744343770902)>
 

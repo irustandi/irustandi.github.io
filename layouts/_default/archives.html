@@ -1,0 +1,23 @@
+{{ define "main" }}
+  <article class="max-w-prose px-6 py-8 mx-auto">
+    <header>
+      <h1 class="mt-0 text-4xl font-extrabold text-neutral-900 dark:text-neutral">
+        {{ .Title }}
+      </h1>
+    </header>
+    {{ $pages := where .Site.RegularPages "Section" "posts" }}
+    {{ range $pages.GroupByDate "2006" }}
+      <h2 class="mt-8 text-2xl font-semibold">{{ .Key }}</h2>
+      <ul class="mt-4 space-y-3">
+        {{ range .Pages }}
+          <li>
+            <time class="text-sm text-neutral-500 dark:text-neutral-400" datetime="{{ .Date.Format "2006-01-02" }}">
+              {{ .Date.Format "2 January 2006" }}
+            </time>
+            <a class="block text-lg font-medium" href="{{ .RelPermalink }}">{{ .Title }}</a>
+          </li>
+        {{ end }}
+      </ul>
+    {{ end }}
+  </article>
+{{ end }}

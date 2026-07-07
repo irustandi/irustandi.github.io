@@ -1,6 +1,12 @@
-Title: Kolm and Ritter (2018)
-Date: 2019-10-12 09:00
-Category: reinforcement learning
+---
+title: "Kolm and Ritter (2018)"
+date: 2019-10-12T09:00:00-04:00
+authors: ["Indrayana Rustandi"]
+categories: ["reinforcement learning"]
+url: "/kolm-and-ritter-2018.html"
+math: true
+showComments: true
+---
 
 ```python
 %reload_ext autoreload
@@ -120,7 +126,7 @@ plt.plot(t, prices[5,:])
 
 
 
-![png]({static}/images/kolm_ritter/output_8_1.png)
+![png](/images/kolm_ritter/output_8_1.png)
 
 
 Looks reasonable. Now we are ready to implement our simulation environment. We follow the interface of [OpenAI gym's environment](https://github.com/openai/gym/blob/master/docs/creating-environments.md). We also implement the transaction cost calculator, following the formula used in the paper:
@@ -598,7 +604,7 @@ plt.legend()
 
 
 
-![png]({static}/images/kolm_ritter/output_35_1.png)
+![png](/images/kolm_ritter/output_35_1.png)
 
 
 
@@ -626,7 +632,7 @@ plt.plot(env.prices)
 
 
 
-![png]({static}/images/kolm_ritter/output_38_1.png)
+![png](/images/kolm_ritter/output_38_1.png)
 
 
 Next we print out the total PnLs and plot the evolution of the PnLs for both RLHedger and BSMHedger. In both cases, there are some small residual total PnLs.
@@ -641,7 +647,7 @@ print(np.sum(env.opt_pnl + env.stock_pnl))
     
 
 
-![png]({static}/images/kolm_ritter/output_40_1.png)
+![png](/images/kolm_ritter/output_40_1.png)
 
 
 
@@ -654,7 +660,7 @@ print(np.sum(env_ref.opt_pnl + env_ref.stock_pnl))
     
 
 
-![png]({static}/images/kolm_ritter/output_41_1.png)
+![png](/images/kolm_ritter/output_41_1.png)
 
 
 Next we compare the evolution of the number of shares held short by the RLHedger and the delta of the option. Qualitatively, they look similar.
@@ -670,7 +676,7 @@ plt.plot(env.num_shares_hist)
 
 
 
-![png]({static}/images/kolm_ritter/output_43_1.png)
+![png](/images/kolm_ritter/output_43_1.png)
 
 
 
@@ -684,7 +690,7 @@ plt.plot(env.deltas)
 
 
 
-![png]({static}/images/kolm_ritter/output_44_1.png)
+![png](/images/kolm_ritter/output_44_1.png)
 
 
 #### With transaction costs
@@ -704,7 +710,7 @@ plt.legend()
 
 
 
-![png]({static}/images/kolm_ritter/output_46_1.png)
+![png](/images/kolm_ritter/output_46_1.png)
 
 
 
@@ -740,7 +746,7 @@ plt.legend()
 
 
 
-![png]({static}/images/kolm_ritter/output_50_1.png)
+![png](/images/kolm_ritter/output_50_1.png)
 
 
 
@@ -770,7 +776,7 @@ plt.legend()
 
 
 
-![png]({static}/images/kolm_ritter/output_53_1.png)
+![png](/images/kolm_ritter/output_53_1.png)
 
 
 Similar to the paper, we also compute and plot the density estimates of the t-statistics of the PnLs in both cases. The plot shows that the PnLs in the BSMHedger case are more significantly different from zero compared to the PnLs in the RLHedger case.
@@ -794,7 +800,7 @@ plt.legend()
 
 
 
-![png]({static}/images/kolm_ritter/output_56_1.png)
+![png](/images/kolm_ritter/output_56_1.png)
 
 
 Next we consider a particular episode, in particular, comparing the number of shares held short versus the delta for the RLHedger case. Here we see that the RLHedger case performs the hedging more gradually compared to what is suggested by the delta; for instance, in the beginning, even though delta is higher (around 0.5 since in the beginning the option is at the money), the RLHedger starts with shorting around 20 shares of stock.
@@ -810,7 +816,7 @@ plt.plot(env_cost.num_shares_hist)
 
 
 
-![png]({static}/images/kolm_ritter/output_58_1.png)
+![png](/images/kolm_ritter/output_58_1.png)
 
 
 
@@ -824,7 +830,7 @@ plt.plot(env_cost.deltas)
 
 
 
-![png]({static}/images/kolm_ritter/output_59_1.png)
+![png](/images/kolm_ritter/output_59_1.png)
 
 
 ### Saving models

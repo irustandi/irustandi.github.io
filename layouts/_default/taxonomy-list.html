@@ -1,0 +1,23 @@
+{{ define "main" }}
+  <article class="max-w-prose px-6 py-8 mx-auto">
+    <header>
+      <h1 class="mt-0 text-4xl font-extrabold text-neutral-900 dark:text-neutral">
+        {{ .Title }}
+      </h1>
+    </header>
+    {{ $taxonomy := .Params.taxonomy }}
+    {{ $terms := index .Site.Taxonomies $taxonomy }}
+    {{ if $terms }}
+      <ul class="mt-6 space-y-3">
+        {{ range $terms.ByCount }}
+          <li>
+            <a class="text-lg font-medium" href="{{ .Page.RelPermalink }}">{{ .Page.Title }}</a>
+            <span class="text-sm text-neutral-500 dark:text-neutral-400">({{ .Count }})</span>
+          </li>
+        {{ end }}
+      </ul>
+    {{ else }}
+      <p>No {{ $taxonomy }} found.</p>
+    {{ end }}
+  </article>
+{{ end }}

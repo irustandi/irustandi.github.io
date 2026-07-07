@@ -1,6 +1,11 @@
-Title: Performance comparison of Keras examples when run using Theano and TensorFlow
-Date: 2016-06-25 09:00
-Category: deep learning
+---
+title: "Performance comparison of Keras examples when run using Theano and TensorFlow"
+date: 2016-06-25T09:00:00-04:00
+authors: ["Indrayana Rustandi"]
+categories: ["deep learning"]
+url: "/performance-comparison-of-keras-examples-when-run-using-theano-and-tensorflow.html"
+showComments: true
+---
 
 Setup: 2x Xeon E5 2670, 128GB RAM, Nvidia Geforce GTX 980 Ti (6GB), Ubuntu 14.04, CUDA 7.5, Anaconda 4.0 running Python 2.7, Theano 0.8.2 (CNMem turned on), TensorFlow 0.9.0, CuDNN 4
 

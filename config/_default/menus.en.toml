@@ -1,0 +1,24 @@
+[[main]]
+  name = "Archives"
+  url = "/archives.html"
+  weight = 10
+
+[[main]]
+  name = "Categories"
+  url = "/categories.html"
+  weight = 20
+
+[[main]]
+  name = "Tags"
+  url = "/tags.html"
+  weight = 30
+
+[[footer]]
+  name = "Archives"
+  url = "/archives.html"
+  weight = 10
+
+[[footer]]
+  name = "Categories"
+  url = "/categories.html"
+  weight = 20

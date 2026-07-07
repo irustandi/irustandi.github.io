@@ -1,5 +1,11 @@
-Title: Migrating to Pelican
-Date: 2019-09-21 08:00
+---
+title: "Migrating to Pelican"
+date: 2019-09-21T08:00:00-04:00
+authors: ["Indrayana Rustandi"]
+categories: ["misc"]
+url: "/migrating-to-pelican.html"
+showComments: true
+---
 
 After some extended hiatus, trying to pick up writing this blog again. I have also decided to migrate to [Pelican](https://docs.getpelican.com/en/stable/).
 
